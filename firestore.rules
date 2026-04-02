@@ -1,0 +1,94 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: uid
+    // Fields:
+    //   - uid: string (required)
+    //   - email: string (required)
+    //   - displayName: string
+    //   - photoURL: string
+    //   - role: string (admin/user)
+    //
+    // Collection: messages
+    // Document ID: auto-generated
+    // Fields:
+    //   - senderId: string (required)
+    //   - receiverId: string (required)
+    //   - text: string
+    //   - type: string (text/photo/voice/file)
+    //   - fileData: string (base64)
+    //   - fileName: string
+    //   - timestamp: timestamp (required)
+    //   - edited: bool
+    //   - deleted: bool
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (request.auth.token.email == "mahamudurrahman778@gmail.com" && request.auth.token.email_verified == true ||
+         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'));
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'role']) &&
+             data.uid is string &&
+             data.email is string &&
+             data.role in ['admin', 'user'] &&
+             (!('isTyping' in data) || data.isTyping is bool) &&
+             (!('lastMessage' in data) || data.lastMessage is string) &&
+             (!('lastMessageTime' in data) || data.lastMessageTime is timestamp);
+    }
+
+    function isValidMessage(data) {
+      return data.keys().hasAll(['senderId', 'receiverId', 'chatId', 'type', 'timestamp']) &&
+             data.senderId is string &&
+             data.receiverId is string &&
+             data.chatId is string &&
+             data.type in ['text', 'photo', 'voice', 'file'] &&
+             data.timestamp is timestamp &&
+             (!('seen' in data) || data.seen is bool);
+    }
+
+    match /test/{docId} {
+      allow read: if isAuthenticated();
+    }
+
+    match /users/{userId} {
+      // Allow users to get their own profile or any admin's profile
+      allow get: if isAuthenticated() && (isOwner(userId) || isAdmin() || resource.data.role == 'admin');
+      // Allow listing (queries) if the results are limited to the user's own doc or admin docs
+      allow list: if isAuthenticated() && (resource.data.uid == request.auth.uid || resource.data.role == 'admin' || isAdmin());
+      
+      allow create: if isAuthenticated() && isValidUser(request.resource.data) && (isOwner(userId) || isAdmin());
+      allow update: if isAuthenticated() && isValidUser(request.resource.data) && (isOwner(userId) || isAdmin());
+    }
+
+    match /messages/{messageId} {
+      // Allow reading if user is sender or receiver or it's their chat
+      allow get: if isAuthenticated() && (request.auth.uid == resource.data.senderId || request.auth.uid == resource.data.receiverId || request.auth.uid == resource.data.chatId || isAdmin());
+      allow list: if isAuthenticated() && (resource.data.chatId == request.auth.uid || isAdmin());
+      
+      allow create: if isAuthenticated() && isValidMessage(request.resource.data) && (request.auth.uid == request.resource.data.senderId || isAdmin());
+      allow update: if isAuthenticated() && (request.auth.uid == resource.data.senderId || isAdmin());
+      allow delete: if isAuthenticated() && (request.auth.uid == resource.data.senderId || isAdmin());
+    }
+  }
+}

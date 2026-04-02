@@ -1,0 +1,50 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "A user of the chat application.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "user"] },
+        "isTyping": { "type": "boolean" },
+        "lastMessage": { "type": "string" },
+        "lastMessageTime": { "type": "string", "format": "date-time" },
+        "lastSeen": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "A chat message.",
+      "type": "object",
+      "properties": {
+        "senderId": { "type": "string" },
+        "receiverId": { "type": "string" },
+        "chatId": { "type": "string", "description": "The UID of the user involved in the chat with the admin" },
+        "text": { "type": "string" },
+        "type": { "type": "string", "enum": ["text", "photo", "voice", "file"] },
+        "fileData": { "type": "string", "description": "Base64 encoded file data" },
+        "fileName": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "edited": { "type": "boolean" },
+        "deleted": { "type": "boolean" },
+        "seen": { "type": "boolean" }
+      },
+      "required": ["senderId", "receiverId", "type", "timestamp"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": { "$ref": "User" },
+      "description": "User profile information."
+    },
+    "messages/{messageId}": {
+      "schema": { "$ref": "Message" },
+      "description": "Chat messages between users and admin."
+    }
+  }
+}

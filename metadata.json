@@ -1,0 +1,5 @@
+{
+  "name": "Aviator Chat Pro",
+  "description": "A real-time chat application for users to connect with Aviator Prediction Pro Admin.",
+  "requestFramePermissions": ["microphone"]
+}
